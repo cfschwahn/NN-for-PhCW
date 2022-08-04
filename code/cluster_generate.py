@@ -1,6 +1,6 @@
-## Script to be run on cluster. Simulations are run one per core
-# in parallel and results are logged as they are produced.
-# Caspar March 2022
+## Script to be run on cluster. MPB simulations are run one per core
+# in parallel and results are logged as they are produced. 
+# Caspar Schwahn August 2022
 
 import multiprocessing as mp
 import time
@@ -60,11 +60,10 @@ min_gap=min_sep
 
 # mpb constants
 n_bands = 30
-n_k_points = 11
+n_k_points = 101
 
-### Define functions
+### Functions
 
-# same function as in generate_dataset.py
 def check_design(dvec, min_rad=0.2, min_sep=0.1, min_gap=0.1):
     """
     Returns whether or not a 10D design vector is valid i.e. within manufacturing limits.
@@ -173,7 +172,6 @@ def check_design(dvec, min_rad=0.2, min_sep=0.1, min_gap=0.1):
     # return whether all constraints are respected
     return check_rows(d_matrix)
 
-# same function as in generate_dataset.py
 def random_design(cvec = {'r0': (0.2,0.45), 'r1': (0.2,0.45), 'r2': (0.2,0.45), 'r3':(0.2,0.45),
                           's1': (-2.165063509461097, 0.616025),
                           's2': (-1.73205080756, 1.4820508), 
@@ -227,7 +225,7 @@ def parse_bands(file_path, n_k_points = 101, n_bands = 30):
     return band_matrix
 
 def generate(index):
-# helper function to create handle a single simulation. Draws random design,
+# helper function for a single MPB simulation. Draws random design,
 # runs mpb, parses its log file, and returns the design and its bands.
     
     outputLog = log_dir / (str(index).zfill(6) + ".log")
@@ -246,7 +244,7 @@ def generate(index):
         "fieldFraction": 0.827, 
         "inputFile": inputFile,
         "ke": 0.5,
-        "kinterp": 9, # for k resolution of 0.005
+        "kinterp": 99, # for k resolution of 0.005
         "ks": 0.0, 
         "mpb": mpb,
         "outputFile": outputLog,
@@ -255,24 +253,22 @@ def generate(index):
 
     # Call MPB as in W1Experiment in experiment.py in backend (Sean Billings, 2015)
     FNULL = open(os.devnull, 'w')
-    #try:
+
     cmd_str = str(p["mpb"]) + " Ks=" + str(p["ks"]) + " Ke=" + str(p["ke"]) + " Kinterp=" + str(p["kinterp"]) + p["calculationType"] +  p["paramVectorString"] + ' %s > %s' %(p["inputFile"], p["outputFile"])
-    print("Start", index, "running command: ", cmd_str)
+    #print("Start", index, "running command: ", cmd_str)
     code = subprocess.run(cmd_str, shell=True, stdout=FNULL, stderr=subprocess.STDOUT)
-    #except subprocess.CalledProcessError as e:
-    #    print(e.output)
-    print("Finish: ", index, "with return code ", code.returncode, " and output", code.stdout)
+    #print("Finish: ", index, "with return code ", code.returncode, " and output", code.stdout)
     # extract bands from log file
     band_vector = parse_bands(outputLog, n_k_points=n_k_points, n_bands=30).flatten().tolist()
-    print("Parsed: ", index)
+    #print("Parsed: ", index)
+    
     return {"id":index ,"band_vector":band_vector,**dvec}
 
 
 def handle_generate(n_designs=n_designs):
 
-    # create a header for csv with multiindexing
+    # create a header for csv (with multiindexing for pandas)
     d_cols = ['r0', 'r1', 'r2', 'r3', 's1', 's2', 's3', 'p1', 'p2', 'p3']    
-
     top_cols = ["id"]+len(d_cols)*["design_params"]
     bot_cols = ["id"]+d_cols
     for i in range(1, n_bands+1):
