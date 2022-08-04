@@ -10,7 +10,6 @@ from numpy.random import default_rng
 import pandas as pd
 from tqdm.auto import tqdm
 import pathlib
-from backend.experiment import W1Experiment
 from datetime import datetime
 import sys
 import os
@@ -61,7 +60,7 @@ min_gap=min_sep
 
 # mpb constants
 n_bands = 30
-n_k_points = 101
+n_k_points = 11
 
 ### Define functions
 
@@ -238,17 +237,17 @@ def generate(index):
 
     paramVectorString = ""
     for k in dvec.keys():
-        paramVectorString += " " + k + "=" str(dvec[k])
+        paramVectorString += " " + k + "=" + str(dvec[k])
 
     # Note: c1, c2, and fieldFraction values taken from W1Experiment in experiment.py in backend (Sean Billings, 2015)
-    p = {"c1": 4 # constant for out of plane loss,
-        "c2": 220 # constant for backscattering loss,
-        "calculationType": "calculation-type=4",
+    p = {"c1": 4, # constant for out of plane loss,
+        "c2": 220, # constant for backscattering loss,
+        "calculationType": " calculation-type=4",
         "fieldFraction": 0.827, 
         "inputFile": inputFile,
-        "ke": 0.5
-        "kinterp": 99 # for k resolution of 0.005
-        "ks": 0.0 
+        "ke": 0.5,
+        "kinterp": 9, # for k resolution of 0.005
+        "ks": 0.0, 
         "mpb": mpb,
         "outputFile": outputLog,
         "paramVectorString": paramVectorString,
@@ -256,12 +255,16 @@ def generate(index):
 
     # Call MPB as in W1Experiment in experiment.py in backend (Sean Billings, 2015)
     FNULL = open(os.devnull, 'w')
-    subprocess.call(p["mpb"] + " Ks=" + p["ks"] + " Ke=" + p["ke"] + " Kinterp=" +p["kinterp"] + p["calculationType"] + p["paramVectorString"],
-        shell=True, stdout=FNULL, stderr=subprocess.STDOUT)
-
+    #try:
+    cmd_str = str(p["mpb"]) + " Ks=" + str(p["ks"]) + " Ke=" + str(p["ke"]) + " Kinterp=" + str(p["kinterp"]) + p["calculationType"] +  p["paramVectorString"] + ' %s > %s' %(p["inputFile"], p["outputFile"])
+    print("Start", index, "running command: ", cmd_str)
+    code = subprocess.run(cmd_str, shell=True, stdout=FNULL, stderr=subprocess.STDOUT)
+    #except subprocess.CalledProcessError as e:
+    #    print(e.output)
+    print("Finish: ", index, "with return code ", code.returncode, " and output", code.stdout)
     # extract bands from log file
-    band_vector = parse_bands(outputLog, n_k_points=101, n_bands=30).flatten()
-
+    band_vector = parse_bands(outputLog, n_k_points=n_k_points, n_bands=30).flatten().tolist()
+    print("Parsed: ", index)
     return {"id":index ,"band_vector":band_vector,**dvec}
 
 
@@ -281,7 +284,7 @@ def handle_generate(n_designs=n_designs):
     pool = mp.Pool(n_cpus)
 
     # show a progress bar
-    with tqdm(total=n_designs, unit="PhCW design", leave=True, dynamic_ncols=True, smoothing=0.1) as pbar:
+    with tqdm(total=n_designs, unit="PhCW design", leave=True, dynamic_ncols=True, smoothing=0.01) as pbar:
         # create output csv
         with open(output_dir/ (out_name+".csv"), "w", encoding='utf-8', newline='') as f:
             writer = csv.writer(f)
@@ -291,7 +294,7 @@ def handle_generate(n_designs=n_designs):
             
             # write results as they arrive
             # Alternatively use imap() instead of imap_unordered to guarantee order is preserved
-            for result in pool.imap(generate, range(n_designs)):
+            for result in pool.imap_unordered(generate, range(n_designs)):
                 writer.writerow([result["id"]]+[result[k] for k in d_cols]+result["band_vector"])
                 pbar.update()
     pbar.close()
