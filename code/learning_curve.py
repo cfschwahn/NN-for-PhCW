@@ -3,7 +3,6 @@ import sys
 import numpy as np
 import pandas as pd
 import pathlib
-import keras_tuner as kt
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
@@ -116,7 +115,7 @@ if __name__ == "__main__":
         help='Patience of early stopping callback')
     parser.add_argument('--learning_rate', type=float,
         help='Learning rate')
-    parser.add_argument('--split', type=int,
+    parser.add_argument('--split', type=float,
         help='fraction of training set to be used')
     p = parser.parse_args()
 
@@ -149,13 +148,18 @@ if __name__ == "__main__":
     n_val = len(X_val)
     n_val_samples = int(p.split*n_val)
 
-    ran_train_mask = np.random.randint(n_train_samples)
+    ran_train_mask = np.random.randint(n_train_samples, size=n_train_samples)
     X_train_subset = X_train[ran_train_mask,:]
     y_train_subset = y_train[ran_train_mask,:]
 
-    ran_val_mask = np.random.randint(n_val_samples)
+    ran_val_mask = np.random.randint(n_val_samples, size=n_val_samples)
     X_val_subset = X_val[ran_val_mask,:]
     y_val_subset = y_val[ran_val_mask,:]
+
+    print("X_train_subset shape:", X_train_subset.shape)
+    print("X_val_subset shape:", X_val_subset.shape)
+    print("y_train_subset shape:", y_train_subset.shape)
+    print("y_val_subset shape:", X_val_subset.shape)
 
     # ensure all runs have the same number of gradient descent steps
     adjusted_epochs = int(p.epochs/p.split)
@@ -168,7 +172,7 @@ if __name__ == "__main__":
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=out_dir / (p.out_name+"_logs"),
         histogram_freq=0)
     early_stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss',
-        patience=p.patience, restore_best_weights=True)
+        patience=adjusted_patience, restore_best_weights=True)
     csv_logger = tf.keras.callbacks.CSVLogger(out_dir / 'training_log.csv', append=True)
     # Run the hyperparameter search
     history = model.fit(X_train_subset, y_train_subset, epochs=adjusted_epochs, validation_data=(X_val_subset, y_val_subset),
