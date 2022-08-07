@@ -1,0 +1,20 @@
+#!/bin/bash
+#SBATCH -J LC-1
+#SBATCH -p gpu
+#SBATCH --gpus-per-node=1 
+#SBATCH --mail-user=cfs4@st-andrews.ac.uk
+#SBATCH --mail-type=ALL
+
+# set variables for python script
+train_dir='/home/cfs4/NN-dev/training-sets/bands'
+out_dir='/home/cfs4/PhCW2022/learning-curve'
+out_name='LC-1'
+epochs=2000
+patience=100
+learning_rate=0.00002
+split=0.5
+
+eval "$(conda shell.bash hook)"
+conda activate deep-gpu
+
+python learning_curve.py --train_dir $train_dir --out_dir $out_dir --out_name $out_name --epochs $epochs --patience $patience --learning_rate $learning_rate --split $split

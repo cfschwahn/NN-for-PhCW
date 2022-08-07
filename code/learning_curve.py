@@ -1,3 +1,9 @@
+"""
+To be called with various fractions of the training data in each job
+on HPC cluster for creation of learning curve.
+Caspar Schwahn August 2022
+"""
+
 import argparse
 import sys
 import numpy as np
@@ -11,7 +17,7 @@ import json
 from datetime import datetime
 
 def build(lr=2e-5):
-    """build model for manual grid search
+    """builds and compiles model
     
     All hyperparameters other than learning rate and the size of the bottleneck layer are fixed.
     Bottleneck layer: hidden layer 5. Layers 4 and 6 neurons are average of normal and bottleneck layer.
@@ -155,11 +161,6 @@ if __name__ == "__main__":
     ran_val_mask = np.random.randint(n_val_samples, size=n_val_samples)
     X_val_subset = X_val[ran_val_mask,:]
     y_val_subset = y_val[ran_val_mask,:]
-
-    print("X_train_subset shape:", X_train_subset.shape)
-    print("X_val_subset shape:", X_val_subset.shape)
-    print("y_train_subset shape:", y_train_subset.shape)
-    print("y_val_subset shape:", X_val_subset.shape)
 
     # ensure all runs have the same number of gradient descent steps
     adjusted_epochs = int(p.epochs/p.split)
