@@ -164,7 +164,7 @@ if __name__ == "__main__":
 
     # ensure all runs have the same number of gradient descent steps
     adjusted_epochs = int(p.epochs/p.split)
-    adjusted_patience = int(p.epochs/p.patience)
+    adjusted_patience = int(p.patience/p.split)
 
     model = build(lr = p.learning_rate)
 
