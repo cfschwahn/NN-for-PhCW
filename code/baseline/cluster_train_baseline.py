@@ -28,7 +28,7 @@ def build(learning_rate=2e-5, hidden_layers=9, units=512, leaky_alpha=0.3, clipn
     inputs = keras.Input(shape=input_shape)
     x = layers.Dense(units, kernel_initializer=kernel_initializer)(inputs)
     x = layers.LeakyReLU(alpha=leaky_alpha)(x)
-    for i in range(1,hidden_layers):
+    for i in range(hidden_layers):
         x = layers.Dense(units, kernel_initializer=kernel_initializer)(x)
         x = layers.LeakyReLU(alpha=leaky_alpha)(x)
     outputs = layers.Dense(output_shape)(x)
