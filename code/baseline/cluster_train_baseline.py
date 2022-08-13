@@ -1,6 +1,5 @@
 """
-To be called with various fractions of the training data in each job
-on HPC cluster for creation of learning curve.
+Trains and evaluates NNs on cluster
 Caspar Schwahn August 2022
 """
 
@@ -149,17 +148,19 @@ if __name__ == "__main__":
     y_val = y_val_df.to_numpy()
     y_test = y_test_df.to_numpy()
 
-    model = build(learning_rate = p.learning_rate, units = p.units, hidden_layers = p.hidden_layers,
-        leaky_alpha = p.leaky_alpha, clipnorm = clipnorm, clipnorm_value = clipnorm_value)
+    if clipnorm:
 
+        model = build(learning_rate = p.learning_rate, units = p.units, hidden_layers = p.hidden_layers, leaky_alpha = p.leaky_alpha, clipnorm = clipnorm, clipnorm_value = clipnorm_value)
+    else: 
+        model = build(learning_rate = p.learning_rate, units = p.units, hidden_layers = p.hidden_layers, leaky_alpha = p.leaky_alpha)
+    
     model.summary()
     
     # Instantiate callbacks. Set histogram_freq to non-zero to see weight histograms in tensorboard
     # to diagnose exploding gradients
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=out_dir / (p.out_name+"_logs"),
         histogram_freq=0)
-    early_stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss',
-        patience=p.patience, restore_best_weights=True)
+    early_stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss',        patience=p.patience, restore_best_weights=True)
     csv_logger = tf.keras.callbacks.CSVLogger(out_dir / 'training_log.csv', append=True)
     # Run the hyperparameter search
     history = model.fit(X_train, y_train, epochs=p.epochs, validation_data=(X_val, y_val),
