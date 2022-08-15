@@ -188,7 +188,10 @@ if __name__ == "__main__":
 
     eval_dict = {"epochs":p.epochs, "patience":p.patience, "learning_rate": p.learning_rate,
         "units":p.units, "hidden_layers":p.hidden_layers, "leaky_alpha":p.leaky_alpha,
-        "clipnorm": clipnorm, "clipnorm_value": clipnorm_value}
+        "clipnorm": clipnorm}
+    
+    if clipnorm:
+        eval_dict["clipnorm_value"] = clipnorm_value
 
     pred = y_test_predicts.to_numpy().flatten()
     act = y_test_df.to_numpy().flatten()
