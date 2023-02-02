@@ -1,6 +1,6 @@
 """
 Trains and evaluates branching NNs on cluster
-Caspar Schwahn, August 2022
+Caspar Schwahn August 2022
 """
 
 import argparse
@@ -15,6 +15,7 @@ import tensorboard as tb
 import json
 from datetime import datetime
 from functools import partial
+
 
 def build_branching_dropout(hidden_layers=5, units=500, branching_layers=5, branching_units=350, leaky_alpha=0.3,
         optimizer_type="Nadam", learning_rate=2e-5, beta_1=0.9, beta_2=0.999, epsilon=1e-07, 
@@ -160,45 +161,65 @@ def make_parser():
     parser.add_argument('--out_name', type=str,
         help='Name of output folder to be created')
     
-    ## Learning curve
-    parser.add_argument('--split', type=float,
-        help='fraction of training set to be used')
+    ## Architecture
+    parser.add_argument('--units', type=int,
+        help='Width of neural network layers')
+    parser.add_argument('--hidden_layers', type=int,
+        help='Depth of neural network - number of hidden layers')
+    parser.add_argument('--branching_units', type=int,
+        help='Width of neural network layers in odd/even branches')
+    parser.add_argument('--branching_layers', type=int,
+        help='Depth of neural network - number of hidden layers in branches')
+    parser.add_argument('--leaky_alpha', type=float,
+        help='LeakyRelU alpha value')
+
+    ## Optimizer
+    parser.add_argument('--optimizer_type', type=str,
+        help="either Adam or Nadam")
+    parser.add_argument('--learning_rate', type=float,
+        help='Learning rate')
+    parser.add_argument('--beta_1', type=float,
+        help ="Adam/Nadam optimizer beta_1")
+    parser.add_argument('--beta_2', type=float,
+        help ="Adam/Nadam optimizer beta_2")
+    parser.add_argument('--epsilon', type=float,
+        help ="Adam/Nadam optimizer epsilon")
+
+    ## Training
+    parser.add_argument('--epochs', type=int,
+        help='Maximum number of epochs to train for')
+    parser.add_argument('--patience', type=int,
+        help='Patience of early stopping callback')
+    parser.add_argument('--batch_size', type=int,
+        help='Batch size to use for training')
+
+    ## Regularisation
+    # Dropout
+    add_bool_arg(parser, 'dropout', default="False",
+        help="Add Dropout layers after all but the final hidden layer")
+    parser.add_argument('--dropout_rate', type=float,
+        help='Dropout rate between 0 and 1')
+    # L2 
+    add_bool_arg(parser, 'l2_reg', default="False",
+        help="Toggle l2 regularisation")
+    parser.add_argument('--l2_value', type=float,
+        help="l2 regularisation value")
+
+    ## Reduce learning rate on plateau callback
+    add_bool_arg(parser, 'reduce_lr', default="True",
+        help="Toggl use reduce learning rate on plateau callback")
+    parser.add_argument('--reduce_factor', type=float, 
+        help="Factor to reduce learning rate by on plateau")
+    parser.add_argument('--reduce_patience', type=int, 
+        help="Patience (in epochs) for reduce learning rate by on plateau")
+
     return parser
+
 
 if __name__ == "__main__":
 
     tik = datetime.now()
     
-    ## Constants
-    # Architecture
-    hidden_layers=5
-    units=500
-    branching_layers=5
-    branching_units=500
-    leaky_alpha=0.3
-
-    # Optimizer
-    optimizer_type="Nadam"
-    learning_rate=0.0001
-    beta_1=0.9
-    beta_2=0.999
-    epsilon=0.0000001
-
-    # Regularisation
-    dropout=False
-    dropout_rate=0.05
-    l2_reg=True
-    l2_value=0.000000001
-
-    # Training
-    epochs=4000
-    patience=300
-    batch_size=16
-
-    # Reduce learning rate on plateau
-    reduce_factor=0.5
-    reduce_patience=200
-
     # Parse command line arguments
     parser = make_parser()
     p = parser.parse_args()
@@ -231,35 +252,14 @@ if __name__ == "__main__":
     y_even_val = y_even_val.to_numpy()
     y_even_test = y_even_test.to_numpy()
     
-
-    # Sample from training set and validation set
-    n_train = len(X_train)
-    n_train_samples = int(p.split*n_train)
-    n_val = len(X_val)
-    n_val_samples = int(p.split*n_val)
-
-    ran_train_mask = np.random.randint(n_train_samples, size=n_train_samples)
-    X_train_subset = X_train[ran_train_mask,:]
-    y_odd_train_subset = y_odd_train[ran_train_mask,:]
-    y_even_train_subset = y_even_train[ran_train_mask,:]
-
-    ran_val_mask = np.random.randint(n_val_samples, size=n_val_samples)
-    X_val_subset = X_val[ran_val_mask,:]
-    y_odd_val_subset = y_odd_val[ran_val_mask,:]
-    y_even_val_subset = y_even_val[ran_val_mask,:]
-
-    # ensure all runs have the same number of gradient descent steps
-    adjusted_epochs = int(epochs/p.split)
-    adjusted_patience = int(patience/p.split)
-
     # Instantiate model
     model = build_branching_dropout(
-        hidden_layers=hidden_layers, units=units,
-        branching_layers=branching_layers, branching_units=branching_units,
-        leaky_alpha=leaky_alpha,
-        optimizer_type=optimizer_type, learning_rate=learning_rate, beta_1=beta_1,
-        beta_2=beta_2, epsilon=epsilon, 
-        dropout=dropout, dropout_rate=dropout_rate, l2_reg=l2_reg, l2_value=l2_value,
+        hidden_layers=p.hidden_layers, units=p.units,
+        branching_layers=p.branching_layers, branching_units=p.branching_units,
+        leaky_alpha=p.leaky_alpha,
+        optimizer_type=p.optimizer_type, learning_rate=p.learning_rate, beta_1=p.beta_1,
+        beta_2=p.beta_2, epsilon=p.epsilon, 
+        dropout=p.dropout, dropout_rate=p.dropout_rate, l2_reg=p.l2_reg, l2_value=p.l2_value,
     )
     
     model.summary()
@@ -269,7 +269,7 @@ if __name__ == "__main__":
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=out_dir / (p.out_name+"_logs"),
         histogram_freq=0)
     early_stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', 
-        patience=adjusted_patience,
+        patience=p.patience,
         restore_best_weights=True,
         verbose=1,
     )
@@ -277,30 +277,31 @@ if __name__ == "__main__":
    
     callback_list = [tensorboard_callback, early_stopping_callback, csv_logger]
    
-    default_min_delta=1e-8
-    default_cooldown=1
-    default_min_lr=1e-6
-    reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(
-        monitor="val_loss",
-        factor=reduce_factor,
-        patience=reduce_patience,
-        verbose=1,
-        min_delta=default_min_delta,
-        cooldown=default_cooldown,
-        min_lr=default_min_lr,
-    )
-    callback_list.append(reduce_lr)
+    if p.reduce_lr:
+        default_min_delta=1e-8
+        default_cooldown=1
+        default_min_lr=1e-6
+        reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(
+            monitor="val_loss",
+            factor=p.reduce_factor,
+            patience=p.reduce_patience,
+            verbose=1,
+            min_delta=default_min_delta,
+            cooldown=default_cooldown,
+            min_lr=default_min_lr,
+        )
+        callback_list.append(reduce_lr)
  
     # Run the hyperparameter search
-    history = model.fit({"design_params":X_train_subset}, 
-        {"even":y_even_train_subset, "odd":y_odd_train_subset}, 
-        epochs=adjusted_epochs, 
-        validation_data=({"design_params":X_val_subset},{"even":y_even_val_subset, "odd":y_odd_val_subset}),
+    history = model.fit({"design_params":X_train}, 
+        {"even":y_even_train, "odd":y_odd_train}, 
+        epochs=p.epochs, 
+        validation_data=({"design_params":X_val},{"even":y_even_val, "odd":y_odd_val}),
         callbacks=callback_list,
         verbose=2,
-        batch_size=batch_size,
+        batch_size=p.batch_size,
     )
-
+    
     ## Evaluate model
 
     # make a header for dataframe/csv
@@ -335,7 +336,18 @@ if __name__ == "__main__":
 
     model.save(out_dir / "model")
 
-    run_dict = {"split":p.split}
+    run_dict = {
+        "hidden_layers":p.hidden_layers, "units":p.units,
+        "branching_layers":p.branching_layers, "branching_units":p.branching_units,
+        "leaky_alpha":p.leaky_alpha,
+        "optimizer_type":p.optimizer_type, "learning_rate":p.learning_rate, "beta_1":p.beta_1,
+        "beta_2":p.beta_2, "epsilon":p.epsilon, 
+        "dropout":p.dropout, "dropout_rate":p.dropout_rate, "l2_reg":p.l2_reg, "l2_value":p.l2_value,
+        "epochs":p.epochs, "patience":p.patience, "batch_size":p.batch_size,
+        "reduce_lr":p.reduce_lr, "reduce_factor":p.reduce_factor, "reduce_patience":p.reduce_patience,
+    }
+
+    print(run_dict)
 
     metrics_dict = {}
     for name, func in [("MSE", MSE), ("RMSE", RMSE), ("MPE", MPE), ("MAPE", MAPE)]:
@@ -345,12 +357,13 @@ if __name__ == "__main__":
                         np.concatenate((y_even_test_pred.flatten(),y_odd_test_pred.flatten())))
         metrics_dict[name]= {"even":even, "odd":odd, "combined":combined}
     
+    print(metrics_dict)
+
     tok = datetime.now()
     
     run_dict["runtime"] = str(tok-tik)
     run_dict["metrics"] = metrics_dict
     with open(out_dir / "run_info.json","w") as f:
         json.dump(run_dict,f)
-    print(run_dict)
 
     print("\nTotal Runtime: {}".format(str(tok-tik)))

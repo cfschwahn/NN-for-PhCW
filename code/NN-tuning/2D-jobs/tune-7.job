@@ -1,0 +1,52 @@
+#!/bin/bash
+#SBATCH -A ug-short
+#SBATCH -J t-7
+#SBATCH -p gpu
+#SBATCH --ntasks=1
+#SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=4
+#SBATCH --mail-user=cfschwahng@gmail.com
+#SBATCH --mail-type=ALL
+# Caspar Schwahn, August 2022
+
+# I/O
+train_dir='/home/cfs4/PhCW2022/NN/datasets/branching-bands-101-3-3/'
+out_dir='/home/cfs4/PhCW2022/NN/tuning/'
+out_name='t-7'
+
+# Architecture
+hidden_layers=5
+units=500
+branching_layers=5
+branching_units=500
+leaky_alpha=0.3
+
+# Optimizer
+optimizer_type="Nadam"
+learning_rate=0.0001
+beta_1=0.9
+beta_2=0.999
+epsilon=0.0000001
+
+# Regularisation
+## toggle dropout (--dropout or --no-dropout)
+dropout_rate=0.05
+## Toggle L2 (--l2_reg or --no-l2_reg)
+l2_value=0.000000001
+
+# Training
+epochs=4000
+patience=300
+batch_size=16
+
+# Reduce learning rate on plateau
+## toggle reduce_lr (--reduce_lr or --no-reduce_lr)
+reduce_factor=0.5
+reduce_patience=200
+
+# Activate conda environment
+eval "$(conda shell.bash hook)"
+conda activate deep-gpu
+
+# Run script
+python cluster_train.py --no-dropout --l2_reg --reduce_lr --train_dir $train_dir --out_dir $out_dir --out_name $out_name --hidden_layers $hidden_layers --units $units --branching_layers $branching_layers --branching_units $branching_units --leaky_alpha $leaky_alpha --optimizer_type $optimizer_type --learning_rate $learning_rate --beta_1 $beta_1 --beta_2 $beta_2 --epsilon $epsilon --dropout_rate $dropout_rate --l2_value $l2_value --epochs $epochs --patience $patience --batch_size $batch_size --reduce_factor $reduce_factor --reduce_patience $reduce_patience

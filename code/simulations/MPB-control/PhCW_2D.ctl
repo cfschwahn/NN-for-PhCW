@@ -66,6 +66,9 @@
     (print "bandstr plus group velocities plus calculate integrals \n"))
 (if (= calculation-type 5)
     (print "bandstr plus group velocities plus calculate integrals plus output fields profiles \n"))
+(if (= calculation-type 6)
+    (print "bandstr plus group velocities with y-parity for NN dataset gen \n"))
+
 
 ;*****************************************************************
 ;define parameters of W1 lattice
@@ -1540,6 +1543,8 @@
 	       W1band-output-efield
 	       W1band-output-hfield
 		 W1band-output-efieldsquared))
+(if (= calculation-type 6); For Neural networks summer project 2022 
+    (run-zeven display-yparities))
 (if (= calculation-type 9);for testing
     (begin 
       )

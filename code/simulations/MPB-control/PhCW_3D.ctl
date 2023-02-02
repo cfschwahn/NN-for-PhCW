@@ -159,17 +159,17 @@
 (define ze (* 0.5 (vector3-z (object-property-value geometry-lattice 'size))))
 (print "Supercell: " xs " " xe " " ys " " ye " " zs " " ze "\n")
 ;rescale resolution to ensure even number of grid points in all directions
+(define resx res)
 (if (odd? (inexact->exact (ceiling (* res (- xe xs)))))
-    (define resx (+ tolerance (/ (ceiling (* res (- xe xs))) (- xe xs))))
-    (define resx res)
+    (set! resx (+ tolerance (/ (ceiling (* res (- xe xs))) (- xe xs)))) 
     )
+(define resy res)
 (if (odd? (inexact->exact (ceiling (* res (- ye ys)))))
-    (define resy (+ tolerance (/ (ceiling (* res (- ye ys))) (- ye ys))))
-    (define resy res)
+    (set! resy (+ tolerance (/ (ceiling (* res (- ye ys))) (- ye ys))))
     )
+(define resz resslab)
 (if (odd? (inexact->exact (ceiling (* resslab (- ze zs)))))
-    (define resz (+ tolerance (/ (ceiling (* resslab (- ze zs))) (- ze zs))))
-    (define resz resslab)
+    (set! resz (+ tolerance (/ (ceiling (* resslab (- ze zs))) (- ze zs))))
     )
 (define integration-resolution (vector3 1 restheta resz))
 (set! resolution (vector3 resx resy resz))
@@ -546,11 +546,11 @@
 
 ;*****************************************************************
 ;define k-points begin
-(define-param Ks 0.0)
+(define-param Ks 0.3)
 (define-param Ke 0.5)
 (define Kstart (vector3 Ks 0 0))
 (define Kend (vector3 Ke 0 0))
-(define-param Kinterp 49) ;number of k-points
+(define-param Kinterp 19) ;number of k-points
 (set! k-points (interpolate Kinterp (list Kstart Kend)))
 ;define k-points end
 ;*****************************************************************
@@ -576,22 +576,13 @@
 ;*****************************************************************
 ;define field functions 
 
-(define (output-efieldsquared b)  ;a function that calculates |E|^2 and prints it to an h5 file   
-(begin
-    (get-efield b)
-    (set! new-field (rscalar-field-make cur-field))
-    (field-map! new-field field-squared2 cur-field)
-    (field-load new-field)
-    (output-field)
-    );end begin
- );end define
 
-(define (W1band-output-efieldsquared b)
+(define (W1band-output-dfieldsquared b)
   (if (= b W1band)
-      (output-efieldsquared b)
+      (fix-dfield-phase b)
+	  (output-dpwr b)
       );end if
   );end define
-
 (define (one F eps r)
   1
   );end define
@@ -1292,12 +1283,12 @@
 (if (= calculation-type 2);bandstructures plus output fields profiles
     (run-zeven W1band-output-efield
 	       W1band-output-hfield
-		 W1band-output-efieldsquared))
+		 W1band-output-dfieldsquared))
 (if (= calculation-type 3);bandstructures plus group velocities plus output fields profiles
     (run-zeven display-group-velocities 
 	       W1band-output-efield
 	       W1band-output-hfield
-		 W1band-output-efieldsquared))
+		 W1band-output-dfieldsquared))
 (if (= calculation-type 4);bandstructures plus group velocities plus calculate integrals
     (run-zeven display-group-velocities 
 	       W1band-integral-rho-holes-list-first-row
@@ -1316,7 +1307,9 @@
 	       W1band-integral-gamma-holes-list-third-row
 	       W1band-output-efield
 	       W1band-output-hfield
-		 W1band-output-efieldsquared))
+		 W1band-output-dfieldsquared))
+(if (= calculation-type 6); For Neural networks summer project 2022 
+    (run-zeven display-yparities))
 (if (= calculation-type 9);for testing
     (begin 
       )

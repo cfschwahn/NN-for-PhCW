@@ -1,0 +1,14 @@
+#!/bin/bash
+#BATCH -A ug-short
+#SBATCH -J speed-test-1
+#SBATCH -p singlenode
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=10
+# Caspar Schwahn, October 2022
+
+# Activate conda environment
+eval "$(conda shell.bash hook)"
+conda activate deep-gpu
+
+# Run script
+python speed_test.py

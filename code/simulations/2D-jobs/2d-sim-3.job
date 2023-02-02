@@ -1,0 +1,27 @@
+#!/bin/bash
+#SBATCH -A ug-short
+#SBATCH -J PhCW-3
+#SBATCH --nodes=1 
+#SBATCH --ntasks-per-node=32
+#SBATCH -p singlenode
+#SBATCH --mail-user=cfs4@st-andrews.ac.uk
+#SBATCH --mail-type=ALL
+# Caspar Schwahn, August 2022
+
+# set variables for python script
+n_designs=25000
+n_cpus=31
+out_name='Batch-3'
+out_path='/home/cfs4/PhCW2022/simulations/2D/'
+log_path='/scratch/phys/cfs4/PhCW2022/simulations/2D/'
+mpb='/gpfs1/apps/software/devts8/bin/mpb'
+inputFile='/gpfs1/home/cfs4/PhCW2022/code/simulations/MPB-control/PhCW_2D.ctl'
+
+source /opt/rh/devtoolset-8/enable
+export PATH=/gpfs1/apps/software/devts8/bin:$PATH
+export LD_LIBRARY_PATH=/gpfs1/apps/software/devts8/lib:$LD_LIBRARY_PATH
+
+eval "$(conda shell.bash hook)"
+conda activate deep
+
+python /home/cfs4/PhCW2022/gen-parity/cluster_generate.py $n_designs $n_cpus $out_name $out_path $log_path $mpb $inputFile
